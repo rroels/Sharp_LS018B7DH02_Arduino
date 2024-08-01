@@ -2,15 +2,24 @@
 
 ## Introduction
 
-This repository contains a modified version of the Adafruit Memory LCD driver, specifically for the Sharp LS018B7DH02.
+At the time of writing, there is no Arduino driver for the Sharp LS018B7DH02 Memory LCD. They do exist for other Sharp models, such as the one sold by [Adafruit](https://www.adafruit.com/product/3502), but sadly they are not compatible with this model.
+
+This repository contains a modified version of the Adafruit Memory LCD driver, specifically for the Sharp LS018B7DH02 Memory LCD.
+
+It is built on top of the Adafruit GFX library, so it supports the usual Adafruit GFX functionality, such as rendering of lines, circles, squares, text, etc.
+
+It should be compatible with any Arduino board with SPI capabilities. Development and testing of this library was done with an Arduino Due and a XIAO nrf52840.
+
+<img src="images/example_running.jpeg" width="500">
 
 ## LS018B7DH02
 
 <img src="images/lcd_image.jpg" width="500">
+
 (image taken from nameless AliExpress Store)
 
-
 Size:
+
 * width: 31mm
 * height: 41.46mm
 * diagonal: 1.8inch
@@ -21,11 +30,18 @@ See website and [datasheet](datasheets/LS018B7DH02_31Oct23_Spec_LD-2023X08.pdf) 
 
 https://www.sharpsde.com/products/displays/model/ls018b7dh02/
 
+## Hardware Setup
+
+The hardware setup is pretty standard compared to other Memory LCD displays. For convenience, I made a small breakout board:
+https://github.com/rroels/LS018B7DH02-breakout
+
+This is however not required. The way to correctly connect this display is described in the [datasheet](datasheets/LS018B7DH02_31Oct23_Spec_LD-2023X08.pdf).
+
 ## Driver Info
 
-### Commnication Protocol
+### Communication Protocol
 
-The main reason why existing memory LCD drivers don't work with the LS018B7DH02 is that it uses 9 bits for line numbers in the SPI communication format. 
+The main reason why existing memory LCD drivers don't work with the LS018B7DH02, is that it uses 9 bits for line numbers in the SPI communication format. 
 The reason for this is that the LS018B7DH02 has 303 rows, so you need 9 bits to refer to a specific line row. The other smaller, more common, memory displays have a smaller resolution (e.g. the one sold by Adafruit), and their communication protocol uses 8 bits to refer to a line number. 
 
 This is further complicated by the fact that the display needs this 9 bit number split into 2 bytes, in LSB order. 
@@ -36,8 +52,9 @@ From the LS018B7DH02 datasheet:
 
 As you can see, the data to update a single row is:
 * 2 bytes containing "command bits" and the row number to update 
+  * note that the row number spans across both bytes, sent in LSB order
 * 30 bytes of image data, one bit per pixel
-  * note that a row is only 230 bits, but it requires another 10 bits of "padding"
+  * note that a row's image data is only 230 bits, but it requires another 10 bits of "padding"
 * 2 empty bytes 
 
 To update more than one row, wait to send the final empty bytes until the last row:
@@ -53,11 +70,59 @@ To update more than one row, wait to send the final empty bytes until the last r
 I chose to modify the existing Adafruit Memory LCD driver, instead of starting from scratch.
 This also makes it compatible with the Adafruit GFX library, with relatively little effort.
 
-See the `example/` folder in this repository for the code.
+Concrete changes:
+* made `sharpmem_buffer` larger
+* adjusted `drawPixel()`, `getPixel()`, `clearDisplay()`, `clearDisplayBuffer()` for new buffer size
+* rewrote `refresh()` for transferring data to the display in the required LS018B7DH02 format
+
+See the `example/` folder in this repository for the modified code.
 
 ### How to Use
 
-See `example/example.ino` for an example. 
+See `example/example.ino` for the example ino file. 
+
+As the modified driver maintains the original interface of the Adafruit Memory LCD driver and Adafruit GFX library, the way to use it is the same:
+
+```c++
+#include <Arduino.h>
+#include "Adafruit_SharpMem.h"
+
+#define PIN_CS 2
+#define PIN_MOSI 75
+#define PIN_CLK 76
+
+#define BLACK 0
+#define WHITE 1
+
+Adafruit_SharpMem display(PIN_CLK, PIN_MOSI, PIN_CS, 230, 303, 2000000);
+
+void setup()
+{
+    // enable DISP pin
+    pinMode(3, OUTPUT);
+    digitalWrite(3, HIGH);
+
+    display.begin();
+    display.clearDisplay();
+}
+
+void loop()
+{
+    display.clearDisplayBuffer();
+
+    display.drawRect(100, 100, 100, 100, BLACK);
+    display.drawLine(0,0,229,302, BLACK);
+    display.drawCircle(50, 230, 30, BLACK);
+
+    display.setTextSize(3);
+    display.setTextColor(BLACK);
+    display.setCursor(0, 0);
+    display.println("HELLO WORLD");
+
+    display.refresh();
+    delay(1000);
+}
+```
 
 Note that just like the original Adafruit Memory LCD driver, there is a dependency on the Adafruit GFX Library. 
 You might still have to install this library via the Arduino IDE or `arduino-cli`.
