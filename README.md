@@ -8,11 +8,11 @@ This repository contains a modified version of the Adafruit Memory LCD driver, s
 
 It is built on top of the Adafruit GFX library, so it supports the usual Adafruit GFX functionality, such as rendering of lines, circles, squares, text, etc.
 
-It should be compatible with any Arduino board with SPI capabilities. Development and testing of this library was done with an Arduino Due and a XIAO nrf52840.
+It should be compatible with any Arduino board with enough RAM (> 10kb) and SPI capabilities. Development and testing of this library was done with an Arduino Due and a XIAO nrf52840.
 
 <img src="images/example_running.jpeg" width="500">
 
-## LS018B7DH02
+## Sharp LS018B7DH02 Details
 
 <img src="images/lcd_image.jpg" width="500">
 
@@ -30,56 +30,9 @@ See website and [datasheet](datasheets/LS018B7DH02_31Oct23_Spec_LD-2023X08.pdf) 
 
 https://www.sharpsde.com/products/displays/model/ls018b7dh02/
 
-## Hardware Setup
-
-The hardware setup is pretty standard compared to other Memory LCD displays. For convenience, I made a small breakout board:
-https://github.com/rroels/LS018B7DH02-breakout
-
-This is however not required. The way to correctly connect this display is described in the [datasheet](datasheets/LS018B7DH02_31Oct23_Spec_LD-2023X08.pdf).
-
-## Driver Info
-
-### Communication Protocol
-
-The main reason why existing memory LCD drivers don't work with the LS018B7DH02, is that it uses 9 bits for line numbers in the SPI communication format. 
-The reason for this is that the LS018B7DH02 has 303 rows, so you need 9 bits to refer to a specific line row. The other smaller, more common, memory displays have a smaller resolution (e.g. the one sold by Adafruit), and their communication protocol uses 8 bits to refer to a line number. 
-
-This is further complicated by the fact that the display needs this 9 bit number split into 2 bytes, in LSB order. 
-
-From the LS018B7DH02 datasheet:
-
-<img src="images/datasheet_data_row.jpg" width="600">
-
-As you can see, the data to update a single row is:
-* 2 bytes containing "command bits" and the row number to update 
-  * note that the row number spans across both bytes, sent in LSB order
-* 30 bytes of image data, one bit per pixel
-  * note that a row's image data is only 230 bits, but it requires another 10 bits of "padding"
-* 2 empty bytes 
-
-To update more than one row, wait to send the final empty bytes until the last row:
-* 2 bytes containing "command bits" and the row number to update
-* 30 bytes of image data, one bit per pixel
-* ...
-* 2 bytes containing "command bits" and the row number to update
-* 30 bytes of image data, one bit per pixel
-* 2 empty bytes
-
-### Implementation
-
-I chose to modify the existing Adafruit Memory LCD driver, instead of starting from scratch.
-This also makes it compatible with the Adafruit GFX library, with relatively little effort.
-
-Concrete changes:
-* made `sharpmem_buffer` larger
-* adjusted `drawPixel()`, `getPixel()`, `clearDisplay()`, `clearDisplayBuffer()` for new buffer size
-* rewrote `refresh()` for transferring data to the display in the required LS018B7DH02 format
-
-See the `example/` folder in this repository for the modified code.
-
 ### How to Use
 
-See `example/example.ino` for the example ino file. 
+See the `example` folder for the driver code, and `example/example.ino` for an example ino file.
 
 As the modified driver maintains the original interface of the Adafruit Memory LCD driver and Adafruit GFX library, the way to use it is the same:
 
@@ -124,8 +77,74 @@ void loop()
 }
 ```
 
-Note that just like the original Adafruit Memory LCD driver, there is a dependency on the Adafruit GFX Library. 
+Note that just like the original Adafruit Memory LCD driver, there is a dependency on the Adafruit GFX Library.
 You might still have to install this library via the Arduino IDE or `arduino-cli`.
+
+## Hardware Setup
+
+The hardware setup is pretty standard compared to other Memory LCD displays. 
+
+For convenience, I made a small breakout board:
+
+<img src="images/pcb.jpg" width="500">
+
+See the dedicated repository for more info: [https://github.com/rroels/LS018B7DH02-breakout](https://github.com/rroels/LS018B7DH02-breakout
+)
+
+This breakout board is however not a requirement for the driver or for this display in general. 
+
+For basic operation you just need 3 capacitors (see reference circuit in datasheet):
+
+<img src="images/recommended_caps.jpg" width="500">
+
+Just like the original Adafruit Memory LCD driver, this driver supports the software-based EXTCOM signal ("COM Signal Serial Flag Input"). 
+For that, you should connect EXT_MODE to GND, and EXTCOMIN to GND.
+This is also described in the [datasheet](datasheets/LS018B7DH02_31Oct23_Spec_LD-2023X08.pdf).
+
+<img src="images/recommended_circuit.jpg" width="500">
+
+The hardest part is breaking out the tiny pins on the display's FPC connector, into something more manageable. For that one could consider a generic FPC breakout adapter. 
+Those can be purchased on for instance AliExpress (search for "FPC adapter 0.5 pitch 10 pins").
+
+## Driver Info
+
+### Communication Protocol
+
+The main reason why existing memory LCD drivers don't work with the LS018B7DH02, is that it uses 9 bits for line numbers in the SPI communication format. 
+The reason for this is that the LS018B7DH02 has 303 rows, so you need 9 bits to refer to a specific line row. The other smaller, more common, memory displays have a smaller resolution (e.g. the one sold by Adafruit), and their communication protocol uses 8 bits to refer to a line number. 
+
+This is further complicated by the fact that the display needs this 9 bit number split into 2 bytes, in LSB order. 
+
+From the LS018B7DH02 datasheet:
+
+<img src="images/datasheet_data_row.jpg" width="600">
+
+As you can see, the data to update a single row is:
+* 2 bytes containing "command bits" and the row number to update 
+  * note that the row number spans across both bytes, sent in LSB order
+* 30 bytes of image data, one bit per pixel
+  * note that a row's image data is only 230 bits, but it requires another 10 bits of "padding"
+* 2 empty bytes 
+
+To update more than one row, wait to send the final empty bytes until the last row:
+* 2 bytes containing "command bits" and the row number to update
+* 30 bytes of image data, one bit per pixel
+* ...
+* 2 bytes containing "command bits" and the row number to update
+* 30 bytes of image data, one bit per pixel
+* 2 empty bytes
+
+### Implementation
+
+I chose to modify the existing Adafruit Memory LCD driver, instead of starting from scratch.
+This also makes it compatible with the Adafruit GFX library, with relatively little effort.
+
+Concrete changes:
+* made `sharpmem_buffer` larger
+* adjusted `drawPixel()`, `getPixel()`, `clearDisplay()`, `clearDisplayBuffer()` for new buffer size
+* rewrote `refresh()` for transferring data to the display in the required LS018B7DH02 format
+
+See the `example/` folder in this repository for the modified code.
 
 ## Speeding up the display refresh
 
