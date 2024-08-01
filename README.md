@@ -53,9 +53,14 @@ To update more than one row, wait to send the final empty bytes until the last r
 I chose to modify the existing Adafruit Memory LCD driver, instead of starting from scratch.
 This also makes it compatible with the Adafruit GFX library, with relatively little effort.
 
+See the `example/` folder in this repository for the code.
+
 ### How to Use
 
-See `src/example.ino` for an example. 
+See `example/example.ino` for an example. 
+
+Note that just like the original Adafruit Memory LCD driver, there is a dependency on the Adafruit GFX Library. 
+You might still have to install this library via the Arduino IDE or `arduino-cli`.
 
 ## Speeding up the display refresh
 
