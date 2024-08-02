@@ -8,7 +8,7 @@ This repository contains a modified version of the Adafruit Memory LCD driver, s
 
 It is built on top of the Adafruit GFX library, so it supports the usual Adafruit GFX functionality, such as rendering of lines, circles, squares, text, etc.
 
-It should be compatible with any Arduino board with enough RAM (> 10kb) and SPI capabilities. Development and testing of this library was done with an Arduino Due and a XIAO nrf52840.
+It should be compatible with any Arduino board with enough RAM (> 10KB) and SPI capabilities. Development and testing of this library was done with an Arduino Due and a XIAO nrf52840.
 
 <img src="images/example_running.jpeg" width="500">
 
@@ -18,13 +18,11 @@ It should be compatible with any Arduino board with enough RAM (> 10kb) and SPI 
 
 (image taken from nameless AliExpress Store)
 
-Size:
-
+Specs:
 * width: 31mm
 * height: 41.46mm
 * diagonal: 1.8inch
-
-Resolution: 230 x 303
+* resolution: 230x303px
 
 See website and [datasheet](datasheets/LS018B7DH02_31Oct23_Spec_LD-2023X08.pdf) for more information:
 
@@ -148,12 +146,13 @@ See the `example/` folder in this repository for the modified code.
 
 ## Speeding up the display refresh
 
-To maintain a broad compatibility, I kept the use of slower Adafruit_SPIDevice for SPI transfers. 
+To maintain a broad compatibility, I kept the use of the slower `Adafruit_SPIDevice` for SPI transfers. 
 However, depending on your board, you might achieve much faster refreshes by using board-specific hardware SPI.
 
-To achieve this, simply replace the relevant SPI calls in the code, especially in the refresh function.
+To achieve this, simply replace the relevant SPI calls in the code, especially in the `refresh()` function.
 
-Currently the function looks something like this:
+Currently the refresh function looks something like this:
+
 ```c++
 void Adafruit_SharpMem::refresh(void) {
     ...
@@ -166,7 +165,8 @@ void Adafruit_SharpMem::refresh(void) {
 }
 ```
 
-Simply replace these calls with whatever native flavour of SPI you want to use. For example, for the Seeed XIAO nrf52840 it looks like this:
+Simply replace these SPI calls with whatever native flavour of SPI you want to use. For example, for the Seeed XIAO nrf52840 it looks like this:
+
 ```c++
 #include <SPI.h>
 
